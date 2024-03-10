@@ -1,0 +1,3 @@
+ipaddr
+netaddr
+python-openstackclient
