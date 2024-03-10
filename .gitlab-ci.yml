@@ -50,8 +50,8 @@ test_openstack_auth:
   before_script:
     - echo "Testing Openstack Authentication..."
   variables:
-      http_proxy: $CORPORATE_HTTP_PROXY
-      https_proxy: $CORPORATE_HTTPS_PROXY
+      http_proxy: $HTTP_PROXY
+      https_proxy: $HTTPS_PROXY
   script:
       - pip install -r requirements.txt
       - echo """$CI_PLLAMA2_OPENRC""" > openrc
