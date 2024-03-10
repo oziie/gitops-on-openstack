@@ -1,0 +1,114 @@
+stages:
+    - tests
+    - validate
+    - plan
+    - apply
+    - destroy
+
+default:
+  before_script:
+    - echo "Starting pipeline execution..."
+    - pwd
+    - ls -lart
+    - terraform --version
+    - | 
+      terraform init \
+          -backend-config="address=$TF_HTTP_ADDRESS" \
+          -backend-config="lock_address=$TF_HTTP_ADDRESS/lock" \
+          -backend-config="unlock_address=$TF_HTTP_ADDRESS/lock" \
+          -backend-config="username=$TF_HTTP_USERNAME" \
+          -backend-config="password=$TF_HTTP_PASSWORD" \
+          -backend-config="lock_method=POST" \
+          -backend-config="unlock_method=DELETE" \
+          -backend-config="retry_wait_min=5" -reconfigure
+    - |
+      cat <<EOF > terraform.tfvars
+      OS_AUTH_TYPE= "$OPENSTACK_AUTH_TYPE"
+      OS_AUTH_URL="$OPENSTACK_AUTH_URL"
+      OS_IDENTITY_API_VERSION="$OPENSTACK_IDENTITY_API_VERSION"
+      OS_REGION_NAME="$OPENSTACK_REGION_NAME"
+      OS_INTERFACE="$OPENSTACK_INTERFACE"
+      OS_APPLICATION_CREDENTIAL_ID="$OPENSTACK_APPLICATION_CREDENTIAL_ID"
+      OS_APPLICATION_CREDENTIAL_SECRET="$OPENSTACK_APPLICATION_CREDENTIAL_SECRET"
+      OS_TENANT_NAME= "$OPENSTACK_PROJECT_NAME"
+      OS_VM_NAME= "$OPENSTACK_VM_NAME"
+      OS_IMAGE_NAME= "$OPENSTACK_IMAGE_NAME"
+      OS_FLAVOR_NAME= "$OPENSTACK_FLAVOR_NAME"
+      OS_KEY_PAIR_NAME= "$OPENSTACK_KEY_PAIR_NAME"
+      OS_NETWORK_NAME= "$OPENSTACK_NETWORK_NAME"
+      OS_VOLUME_NAME= "$OPENSTACK_VOLUME_NAME"
+      OS_VOLUME_SIZE= "$OPENSTACK_VOLUME_SIZE"
+      EOF
+    - echo "terraform.tfvars file is READY!"
+    - cat terraform.tfvars
+  after_script:
+    - echo "Pipeline execution finished."
+
+test_openstack_auth:
+  stage: tests
+  image: python:3.9-buster
+  before_script:
+    - echo "Testing Openstack Authentication..."
+  variables:
+      http_proxy: $CORPORATE_HTTP_PROXY
+      https_proxy: $CORPORATE_HTTPS_PROXY
+  script:
+      - pip install -r requirements.txt
+      - echo """$CI_PLLAMA2_OPENRC""" > openrc
+      - source openrc && openstack project show $OPENSTACK_PROJECT_NAME | grep enabled
+      - rm openrc
+      - echo "END OF TEST1_SHELL_CONNECTIVITY TEST"
+
+terraform_validate:
+  stage: validate
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: ["/usr/bin/env","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+  script:
+    - terraform validate
+  dependencies:
+    - test_openstack_auth
+  when: on_success
+
+terraform_plan:
+  stage: plan
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: ["/usr/bin/env","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+  script:
+    - echo '"terraform.tfvars file is valid!"' | terraform console -var-file terraform.tfvars
+    - terraform plan -out $INFRA_CREATION_PLAN_NAME -var-file terraform.tfvars
+  artifacts:
+    paths:
+      - $INFRA_CREATION_PLAN_NAME
+  dependencies:
+    - terraform_validate
+  when: manual
+
+terraform_apply:
+  stage: apply
+  image: 
+    name: hashicorp/terraform:latest
+    entrypoint: ["/usr/bin/env","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+  script:
+    - echo '"terraform.tfvars file is valid!"' | terraform console -var-file terraform.tfvars
+    - terraform apply $INFRA_CREATION_PLAN_NAME
+  dependencies:
+    - terraform_plan
+  when: manual
+
+terraform_destroy:
+  stage: destroy
+  image:
+    name: hashicorp/terraform:latest
+    entrypoint: ["/usr/bin/env","PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
+  script:
+    - apk add curl
+    - curl --version
+    - echo "Destroying resources..."
+    - terraform destroy -lock=false --auto-approve
+    - echo "Deleting Terraform state on Gitlab UI..."
+    - curl --header "Private-Token:$TF_HTTP_PASSWORD" --request DELETE "$TF_HTTP_ADDRESS"
+  dependencies:
+    - terraform_apply
+  when: manual
