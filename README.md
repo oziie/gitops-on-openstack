@@ -99,6 +99,7 @@ Values can be set under ***"Settings -> CI/CD -> Variables"***.
 - "*" these values can be found in "clouds.yaml"
 - "**" "TF_HTTP_ADDRESS" contains [pre-defined values](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html): CI_API_V4_URL and CI_PROJECT_ID.
 - "***" "TF_PASSWORD" corresponds "CI_JOB_TOKEN" which creates under the ***"Settings -> Access Tokens"***. ( with "api, read_api, read_repository, write_repository" rights.)
+- "****" "TF_HTTP_USERNAME" corresponds the user defined on GitLab and has rights on the repository.
 
 ## 🧰 Tool & Platform Versions
 
