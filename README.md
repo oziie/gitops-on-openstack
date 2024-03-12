@@ -87,6 +87,7 @@ Values can be set under ***"Settings -> CI/CD -> Variables"***.
 | OPENSTACK_PROJECT_NAME | team_devopsstack | no | yes |
 | OPENSTACK_REGION_NAME* | CONFIDENTIAL | yes | yes |
 | OPENSTACK_VM_NAME | GitOps-VM | no | no |
+| OPENSTACK_VOLUME_SIZE | 300 | no | no |
 | TF_HTTP_ADDRESS** | $CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$TF_STATE_NAME | no | no |
 | TF_HTTP_PASSWORD*** | CONFIDENTIAL | yes | yes |
 | TF_HTTP_USERNAME | oziie | no | no |
